@@ -37,7 +37,7 @@ jobs:
         uses: actions/setup-java@v3
         with:
           java-version: '11'
-          distribution: 'adoptopenjdk'
+          distribution: 'adoptium'
 
       # Step 3: Install MySQL client and run setup.sql to initialize the database
       - name: Install MySQL client
