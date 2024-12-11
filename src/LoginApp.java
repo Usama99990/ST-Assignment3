@@ -63,7 +63,10 @@ public class LoginApp extends JFrame {
             PreparedStatement stmt = conn.prepareStatement(query);
             stmt.setString(1, email);
             ResultSet rs = stmt.executeQuery();
-
+    
+            // Added print statement for testing purposes
+            System.out.println("Authenticating user with email: " + email);
+    
             if (rs.next()) {
                 userName = rs.getString("Name");
             }
