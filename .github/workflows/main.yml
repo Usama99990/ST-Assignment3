@@ -1,64 +1,67 @@
-name: Java CI/CD Pipeline
+name: CI-CD
 
 on:
-  push:
-    branches:
-      - main  # Trigger when code is pushed to 'main' branch
-      - master # Trigger when code is pushed to 'master' branch
   pull_request:
     branches:
-      - main  # Trigger for pull requests targeting 'main' branch
-      - master # Trigger for pull requests targeting 'master' branch
+      - main
+      - master
 
 jobs:
   build:
-    runs-on: ubuntu-latest  # Runs the workflow on the latest Ubuntu runner
-    
+    name: testing
+    runs-on: ubuntu-latest
     services:
       mysql:
-        image: mysql:5.7
+        image: mysql:8.0
         env:
           MYSQL_ROOT_PASSWORD: root
           MYSQL_DATABASE: softwaretesting
         ports:
-          - 3306:3306
-        options: >-
-          --health-cmd="mysqladmin ping --silent"
-          --health-timeout=5s
-          --health-retries=3
-
+            - '8888:3306'
+        options: --health-cmd="mysqladmin ping" --health-interval=10s --health-timeout=5s --health-retries=3
+    
     steps:
-      # Step 1: Checkout the code from the repository
       - name: Checkout code
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
 
-      # Step 2: Set up Java (JDK 11 or other versions)
       - name: Set up JDK 11
         uses: actions/setup-java@v3
         with:
           java-version: '11'
           distribution: 'adoptopenjdk'
 
-      # Step 3: Install MySQL client and run setup.sql to initialize the database
-      - name: Install MySQL client
-        run: sudo apt-get install mysql-client
 
-      - name: Wait for MySQL to be ready
+      - name: Create Table
         run: |
-          while ! mysqladmin ping --host=127.0.0.1 --user=root --password=root --silent; do
-            echo "Waiting for MySQL..."
-            sleep 5
-          done
+          sleep 5
+          mysql -h 127.0.0.1 --port 8888 -u root -proot -e "
+          CREATE DATABASE IF NOT EXISTS assignment;
+          USE assignment;
+          CREATE TABLE IF NOT EXISTS User (
+              userId INT PRIMARY KEY AUTO_INCREMENT,
+              Name VARCHAR(100) NOT NULL,
+              Email VARCHAR(100) NOT NULL UNIQUE,
+              Password VARCHAR(255) NOT NULL
+          );
+          INSERT INTO User (Name, Email, Password)
+          VALUES 
+              ('John Doe', 'johndoe@example.com', 'password123'),
+              ('Jane Smith', 'janesmith@example.com', 'password456'),
+              ('Mike Johnson', 'mikejohnson@example.com', 'password789'),
+              ('Alice Brown', 'alicebrown@example.com', 'password101'),
+              ('Tom Clark', 'tomclark@example.com', 'password202');
+          "
 
-      - name: Run setup.sql
-        run: mysql --host=127.0.0.1 --user=root --password=root softwaretesting < setup.sql
 
-      # Step 4: Build the project using Maven
-      - name: Build with Maven
-        run: mvn clean install  # Assuming you're using Maven for building
-
-      # Step 5: Run tests with Maven
-      - name: Run tests with Maven
-        run: mvn test  # This will run the tests using Maven's test phase
-
-  # Step 6: Ensure that the branch protection rule is set (done from the GitHub UI)
+      - name: Include dependencies and run
+        run: |
+          export DISPLAY=:99
+          sudo Xvfb :99 -screen 0 1280x1024x24 &
+          sleep 5
+          mkdir -p lib
+          cp -r mysql-connector-j-9.0.0/*.jar lib/
+          curl -O https://repo1.maven.org/maven2/org/junit/platform/junit-platform-console-standalone/1.8.2/junit-platform-console-standalone-1.8.2.jar
+          mv junit-platform-console-standalone-1.8.2.jar lib/
+          javac -cp "lib/*" -d out src/LoginApp.java src/LoginAppTest.java
+          export DISPLAY=:99
+          java -cp "lib/*:out" org.junit.platform.console.ConsoleLauncher --class-path out --select-class LoginAppTest
